@@ -1,5 +1,9 @@
 # 2.3.x
 
+## Bug fixes
+
+- PIM-7672: Fix the mass edit controller to launch jobs with authentication.
+
 # 2.3.10 (2018-10-01)
 
 ## Bug fixes
