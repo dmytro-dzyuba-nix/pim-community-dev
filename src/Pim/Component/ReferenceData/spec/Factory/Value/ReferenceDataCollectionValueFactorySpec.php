@@ -3,7 +3,6 @@
 namespace spec\Pim\Component\ReferenceData\Factory\Value;
 
 use Acme\Bundle\AppBundle\Entity\Fabric;
-use Akeneo\Component\StorageUtils\Exception\InvalidPropertyException;
 use Akeneo\Component\StorageUtils\Exception\InvalidPropertyTypeException;
 use PhpSpec\ObjectBehavior;
 use Pim\Component\Catalog\Model\AttributeInterface;
@@ -206,10 +205,11 @@ class ReferenceDataCollectionValueFactorySpec extends ObjectBehavior
         $this->shouldThrow($exception)->during('create', [$attribute, null, null, ['foo' => ['bar']]]);
     }
 
-    function it_throws_an_exception_when_provided_data_is_not_an_existing_reference_data_code(
+    function it_does_not_stop_when_provided_data_is_not_an_existing_reference_data_code(
         $repositoryResolver,
-        ReferenceDataRepositoryInterface $referenceDataRepository,
-        AttributeInterface $attribute
+        AttributeInterface $attribute,
+        Fabric $silk,
+        ReferenceDataRepositoryInterface $referenceDataRepository
     ) {
         $attribute->isScopable()->willReturn(false);
         $attribute->isLocalizable()->willReturn(false);
@@ -220,17 +220,20 @@ class ReferenceDataCollectionValueFactorySpec extends ObjectBehavior
         $attribute->getReferenceDataName()->willReturn('fabrics');
 
         $repositoryResolver->resolve('fabrics')->willReturn($referenceDataRepository);
-        $referenceDataRepository->findOneBy(['code' => 'foobar'])->willReturn(null);
+        $referenceDataRepository->findOneBy(['code' => 'silk'])->willReturn($silk);
+        $referenceDataRepository->findOneBy(['code' => 'cotton'])->willReturn(null);
 
-        $exception = InvalidPropertyException::validEntityCodeExpected(
-            'reference_data_multi_select_attribute',
-            'reference data code',
-            'The code of the reference data "fabrics" does not exist',
-            ReferenceDataCollectionValueFactory::class,
-            'foobar'
+        $productValue = $this->create(
+            $attribute,
+            null,
+            null,
+            ['silk', 'cotton']
         );
 
-        $this->shouldThrow($exception)->during('create', [$attribute, null, null, ['foobar']]);
+        $productValue->shouldReturnAnInstanceOf(ReferenceDataCollectionValue::class);
+        $productValue->shouldHaveAttribute('reference_data_multi_select_attribute');
+        $productValue->shouldHaveOnlyOneReferenceData();
+        $productValue->shouldHaveReferenceData([$silk]);
     }
 
     public function getMatchers()
@@ -263,6 +266,9 @@ class ReferenceDataCollectionValueFactorySpec extends ObjectBehavior
                 }
 
                 return $hasFabrics;
+            },
+            'haveOnlyOneReferenceData' => function ($subject) {
+                return 1 === count($subject->getData());
             },
         ];
     }
